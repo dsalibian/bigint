@@ -24,11 +24,15 @@ $(BINARY): $(OBJ_FILES)
 
 obj/tests.o: bigint.h
 
-obj/main.o: main.c bigint.h tests.h
+obj/main.o: main.c bigint.h tests.h | obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
-obj/%.o: %.c %.h Makefile
+obj/%.o: %.c %.h Makefile | obj
 	$(CC) $(CFLAGS) -c $< -o $@
+
+obj: 
+	mkdir obj
+
 
 .PHONY: clean
 clean:

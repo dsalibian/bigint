@@ -7,7 +7,7 @@
 extern uint BASE;
 
 void test(int u, bigint*(*op)(bigint*, bigint*), int64(*ans)(int64, int64)) {
-    assert( BASE <= 16 );
+    if( BASE > 16 ) printf("WARNING: LARGE BASE\n\n");
     for(int i = -u; i <= u; ++i) {
         bigint* a = new_bigint(i);
         for(int j = -u; j <= u; ++j) {

@@ -6,23 +6,25 @@
 
 extern uint BASE;
 
-void test(int u, bigint*(*op)(bigint*, bigint*), int64(*ans)(int64, int64)) {
+void test(int u, bigint(*op)(bigint*, bigint*), int64(*ans)(int64, int64)) {
     if( BASE > 16 ) printf("WARNING: LARGE BASE\n\n");
     for(int i = -u; i <= u; ++i) {
-        bigint* a = new_bigint(i);
+        bigint a = new_bigint(i);
         for(int j = -u; j <= u; ++j) {
-            bigint* b = new_bigint(j);
-            bigint* c = op(a, b);
+            bigint b = new_bigint(j);
+            bigint c = op(&a, &b);
 
-            if( bigint_to_int64(c) - ans(i, j) ) {
-                printf("a: %d \nb: %d\n\nbigint: %lld \nans: %lld\n\n",i, j, bigint_to_int64(c), ans(i, j));
+            int64 n = bigint_to_int64(&c);
+            int64 m = ans(i, j);
+            if( n - m ) {
+                printf("a: %d \nb: %d\n\nbigint: %lld \nans: %lld\n\n",i, j, n, m);
                 abort();
             }
 
-            free_bigint(b);
-            free_bigint(c);
+            free(b.digits);
+            free(c.digits);
         }
-        free_bigint(a);
+        free(a.digits);
     }
 }
 

@@ -9,14 +9,14 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 const uint NEGATIVE = 1;
-const uint BASE = UINT_MAX;
+const uint BASE = 10;
 
-bigint* new_bigint(int64 n) {
-    bigint* bint = malloc(sizeof(bigint));    
-    bint->sign = n < 0;
+bigint new_bigint(int64 n) {
+    bigint bint;
+    bint.sign = n < 0;
     n = llabs(n);
 
-    int digit_count = 0;
+    uint digit_count = 0;
     
     int64 n_copy = n;
     do {
@@ -24,12 +24,12 @@ bigint* new_bigint(int64 n) {
         n_copy /= BASE;
     } while ( n_copy );
 
-    bint->size   = (uint)digit_count;
-    bint->msize  = (uint)digit_count;
-    bint->digits = malloc((uint)digit_count * sizeof(uint));
+    bint.size   = digit_count;
+    bint.msize  = digit_count;
+    bint.digits = malloc(digit_count * sizeof(uint));
 
-    for(int i = 0; i < digit_count; ++i) { 
-        bint->digits[i] = (uint)(n % BASE);
+    for(uint i = 0; i < digit_count; ++i) { 
+        bint.digits[i] = (uint)(n % BASE);
         n /= BASE;
     }
 
@@ -51,7 +51,7 @@ int64 bigint_to_int64(bigint* bint) {
         k *= BASE;
     }
 
-    return sum * (1 - 2 * (int)bint->sign);
+    return bint->sign ? -sum : sum;
 }
 
 void print_bigint(bigint* bint) {
@@ -102,8 +102,8 @@ uint lzc(uint* arr, uint arr_size) {
     return arr_size - 1 - i;
 }
 
-bigint* add(bigint* a, bigint* b) {
-    bigint* result;
+bigint add(bigint* a, bigint* b) {
+    bigint result;
     uint u = MAX(a->size, b->size);
 
     if( a->sign != b->sign ) {
@@ -111,19 +111,18 @@ bigint* add(bigint* a, bigint* b) {
         uint bt = b->sign;
 
         a->sign = b->sign = !NEGATIVE;
-        bigint* t = at ? sub(b, a) : sub(a, b);
+        bigint t = at ? sub(b, a) : sub(a, b);
 
         a->sign = at;
         b->sign = bt;
         return t;
     }
     else {
-        result = malloc(sizeof(bigint));
-        result->msize = u + 1;
-        result->digits = calloc(u+1, sizeof(uint));
-        result->sign = a->sign;
+        result.msize = u + 1;
+        result.digits = calloc(u+1, sizeof(uint));
+        result.sign = a->sign;
 
-        add_digits(a->digits, a->size, b->digits, b->size, result->digits, &result->size);
+        add_digits(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
     }
 
     return result;
@@ -160,7 +159,7 @@ void inc(uint** n, uint* n_size, uint* n_msize) {
     }
 }
 
-bigint* sub(bigint* a, bigint* b) {
+bigint sub(bigint* a, bigint* b) {
     // a - (-b) = a+b
     // (-a) - b = -(a + b)
     if( a->sign - b->sign ) {
@@ -169,11 +168,11 @@ bigint* sub(bigint* a, bigint* b) {
             uint bt = b->sign;
 
             a->sign = b->sign = !NEGATIVE;
-            bigint* t = add(a, b);
+            bigint t = add(a, b);
 
             a->sign = at;
             b->sign = bt;
-            t->sign = !NEGATIVE;
+            t.sign = !NEGATIVE;
 
             return t;
         }
@@ -182,11 +181,11 @@ bigint* sub(bigint* a, bigint* b) {
             uint bt = b->sign;
 
             a->sign = b->sign = !NEGATIVE;
-            bigint* t = add(a, b);
+            bigint t = add(a, b);
 
             a->sign = at;
             b->sign = bt;
-            t->sign = NEGATIVE;
+            t.sign = NEGATIVE;
 
             return t;
         }
@@ -194,22 +193,22 @@ bigint* sub(bigint* a, bigint* b) {
     // a - b 
     // (-a) - (-b) = b - a;
 
-    bigint* result = malloc(sizeof(bigint));
+    bigint result;
     uint u = MAX(a->size, b->size);    
-    result->msize = u;
-    result->size = u;
+    result.msize = u;
+    result.size = u;
 
     int k = cmp_abs(a->digits, a->size, b->digits, b->size);
 
-    result->sign = k != -1 ? NEGATIVE : !NEGATIVE;
-    if( !a->sign ) result->sign = !result->sign;
+    result.sign = k != -1 ? NEGATIVE : !NEGATIVE;
+    if( !a->sign ) result.sign = !result.sign;
 
-    result->digits = calloc(u, sizeof(uint));
+    result.digits = calloc(u, sizeof(uint));
 
     if(k != -1)
-        sub_digits(a->digits, a->size, b->digits, b->size, result->digits, &result->size);
+        sub_digits(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
     else
-        sub_digits(b->digits, b->size, a->digits, a->size, result->digits, &result->size);
+        sub_digits(b->digits, b->size, a->digits, a->size, result.digits, &result.size);
 
     return result;     
 }
@@ -245,15 +244,15 @@ void sub_digits(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* 
     
 }
 
-bigint* mult_trad(bigint* a, bigint* b) {
-    bigint* result = malloc(sizeof(bigint));
+bigint mult_trad(bigint* a, bigint* b) {
+    bigint result;
 
     uint u = MAX(a->size, b->size);
-    result->size = result->msize = u * 2 + 1;
-    result->sign = a->sign ^ b->sign;
-    result->digits = calloc(result->msize, sizeof(uint));
+    result.size = result.msize = u * 2 + 1;
+    result.sign = a->sign ^ b->sign;
+    result.digits = calloc(result.msize, sizeof(uint));
 
-    mult_digits_trad(a->digits, a->size, b->digits, b->size, result->digits, &result->size);
+    mult_digits_trad(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
 
     return result;
 }
@@ -280,10 +279,16 @@ void mult_digits_trad(uint* a, uint a_size, uint* b, uint b_size, uint* result, 
         *result_size -= lzc(result, *result_size);
 }
 
-bigint* div_trad(bigint* a, bigint* b) {
-
-    return NULL;
+bigint div_trad(bigint* a, bigint* b) {
+    (void)(a);
+    (void)(b);
+    return new_bigint(0);
 }
 void div_digits_trad(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* result_size) {
-
+    (void)(a);
+    (void)(a_size);
+    (void)(b);
+    (void)(b_size);
+    (void)(result);
+    (void)(result_size);
 }

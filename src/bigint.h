@@ -13,7 +13,7 @@ typedef struct bigint {
     uint msize;
 } bigint;
 
-bigint* new_bigint(int64);
+bigint new_bigint(int64);
 void free_bigint(bigint*);
 
 int64 bigint_to_int64(bigint*);
@@ -24,17 +24,17 @@ int cmp(bigint*, bigint*);
 int cmp_abs(uint*, uint, uint*, uint);
 uint lzc(uint*, uint);
 
-bigint* add(bigint*, bigint*);
+bigint add(bigint*, bigint*);
 void add_digits(uint*, uint, uint*, uint, uint*, uint*);
 void inc(uint**, uint*, uint*);
 
-bigint* sub(bigint*, bigint*);
+bigint sub(bigint*, bigint*);
 void sub_digits(uint*, uint, uint*, uint, uint*, uint*);
 
-bigint* mult_trad(bigint*, bigint*);
+bigint mult_trad(bigint*, bigint*);
 void mult_digits_trad(uint*, uint, uint*, uint, uint*, uint*);
 
-bigint* div_trad(bigint*, bigint*);
+bigint div_trad(bigint*, bigint*);
 void div_digits_trad(uint*, uint, uint*, uint, uint*, uint*);
 
 #endif

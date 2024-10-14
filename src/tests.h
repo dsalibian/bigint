@@ -3,7 +3,7 @@
 
 #include "bigint.h"
 
-void test(int, bigint*(*)(bigint*, bigint*), int64(*)(int64, int64));
+void test(int, bigint(*)(bigint*, bigint*), int64(*)(int64, int64));
 
 void add_test(int);
 void sub_test(int);

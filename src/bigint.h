@@ -1,40 +1,32 @@
 #ifndef BIGINT_H
 #define BIGINT_H
 
-typedef unsigned int uint;
-typedef long long int64;
-typedef unsigned long long uint64;
+#include <stdint.h>
+#include <stddef.h>
 
 
-typedef struct bigint {
-    uint* digits;
-    uint sign;
-    uint size;
-    uint msize;
+typedef struct biginteger {
+    uint64_t* digs;
+    size_t len, mlen;
+    int sign;
 } bigint;
 
-bigint new_bigint(int64);
-void free_bigint(bigint*);
+bigint bigint_new(int64_t);
+void bigint_free(bigint*);
+void bigint_push_back(bigint*, uint64_t);
+void bigint_resize(bigint*, size_t);
 
-int64 bigint_to_int64(bigint*);
-void print_bigint(bigint*);
-void print_digits(uint*, uint);
+int64_t bigint_to_int64(bigint*);
+const char* bigint_tostr(bigint*, uint64_t);
 
-int cmp(bigint*, bigint*);
-int cmp_abs(uint*, uint, uint*, uint);
-uint lzc(uint*, uint);
+int bigint_cmp_abs(uint64_t*, size_t, uint64_t*, size_t);
+int bigint_cmp(bigint*, bigint*);
+size_t bigint_clz(uint64_t*, size_t);
 
-bigint add(bigint*, bigint*);
-void add_digits(uint*, uint, uint*, uint, uint*, uint*);
-void inc(uint**, uint*, uint*);
-
-bigint sub(bigint*, bigint*);
-void sub_digits(uint*, uint, uint*, uint, uint*, uint*);
-
-bigint mult_trad(bigint*, bigint*);
-void mult_digits_trad(uint*, uint, uint*, uint, uint*, uint*);
-
-bigint div_trad(bigint*, bigint*);
-void div_digits_trad(uint*, uint, uint*, uint, uint*, uint*);
+bigint bigint_add(bigint*, bigint*);
+bigint bigint_sub(bigint*, bigint*);
+bigint bigint_tmul(bigint*, bigint*);
+bigint bigint_tdiv(bigint*, bigint*);
+bigint bigint_mod(bigint*, bigint*);
 
 #endif

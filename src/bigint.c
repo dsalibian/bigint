@@ -1,294 +1,328 @@
 #include "bigint.h"
-#include <assert.h>
-#include <limits.h>
-#include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
+#include <string.h>
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+const uint64_t BASE = 10;
 
-const uint NEGATIVE = 1;
-const uint BASE = 10;
+#define MAX(a, b) ((a) > (b) ? (a) : (b));
+#define MIN(a, b) ((a) < (b) ? (a) : (b));
 
-bigint new_bigint(int64 n) {
+bigint bigint_new(int64_t n) {
     bigint bint;
     bint.sign = n < 0;
-    n = llabs(n);
+    bint.len = 0;
+    bint.mlen = 1;
+    bint.digs = malloc(sizeof(uint64_t));
 
-    uint digit_count = 0;
-    
-    int64 n_copy = n;
+    uint64_t n_abs = (uint64_t)llabs(n);
     do {
-        ++digit_count;
-        n_copy /= BASE;
-    } while ( n_copy );
-
-    bint.size   = digit_count;
-    bint.msize  = digit_count;
-    bint.digits = malloc(digit_count * sizeof(uint));
-
-    for(uint i = 0; i < digit_count; ++i) { 
-        bint.digits[i] = (uint)(n % BASE);
-        n /= BASE;
-    }
+        bigint_push_back(&bint, n_abs % BASE);
+        n_abs /= BASE;
+    } while( n_abs );
 
     return bint;
 }
 
-void free_bigint(bigint* bint) {
-    free(bint->digits);
-    free(bint);
+void bigint_free(bigint* bint) {
+    free(bint->digs);
 }
 
-int64 bigint_to_int64(bigint* bint) {
-    int64 sum = 0;
-    int64 k = 1;
+void bigint_resize(bigint* bint, size_t size) {
+    bint->mlen = size < bint->mlen ? (bint->len = size) : size;
+    bint->digs = realloc(bint->digs, bint->mlen * sizeof(uint64_t));
+}
 
-    uint u = bint->size;
-    for(uint i = 0; i < u; ++i) {
-        sum += bint->digits[i] * k;
+void bigint_push_back(bigint* bint, uint64_t d) {
+    if( bint->len == bint->mlen )
+        bigint_resize(bint, 2 * bint->mlen);
+    
+    bint->digs[(bint->len)++] = d;
+}
+
+
+const char* bigint_tostr(bigint* arr, uint64_t base) {
+    (void)(arr); (void)(base);
+
+    return NULL;    
+}
+
+int64_t bigint_to_int64(bigint* bint) {
+    uint64_t sum = 0;
+    uint64_t k = 1;
+
+    for(size_t i = 0; i < bint->len; ++i) {
+        sum += bint->digs[i] * k;
         k *= BASE;
     }
 
-    return bint->sign ? -sum : sum;
+    return bint->sign ? -(int64_t)sum : (int64_t)sum;
 }
 
-void print_bigint(bigint* bint) {
-    if( bint->sign ) printf("-");    
-    print_digits(bint->digits, bint->size);
-}
+int bigint_cmp_abs(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len) {
+    if( a_len != b_len ) 
+        return a_len > b_len ? 1 : -1;
 
-void print_digits(uint* arr, uint arr_size) {
-    for(int i = (int)arr_size - 1; i >= 0; --i) {
-        uint d = arr[i];
-        if( BASE <= 10 ) printf("%u", d);
-        else if( BASE <= 36) printf("%c", d < 10 ? d+48 : d-10+65);
-        else printf("%u ", d);
-    }
-    printf("\n");
-}
-
-int cmp(bigint* a, bigint* b) {
-    if( a->sign != b->sign ) return a->sign ? -1 : 1;
-
-    if( a->size > b->size ) return a->sign ? -1 :  1;
-    if( a->size < b->size ) return a->sign ?  1 : -1;
-
-    assert(a->size < INT_MAX);
-    for(int i = (int)a->size - 1; i >= 0; --i) {
-        if( a->digits[i] > b->digits[i] ) return a->sign ? -1 :  1;
-        if( a->digits[i] < b->digits[i] ) return a->sign ?  1 : -1;
+    for(size_t i = a_len - 1; i < a_len; --i) {
+        if(a[i] > b[i]) return  1;
+        if(a[i] < b[i]) return -1;
     }
 
     return 0;
 }
 
-int cmp_abs(uint* a, uint a_size, uint* b, uint b_size) {
-    if( a_size != b_size ) return a_size > b_size ? 1 : -1;
+int bigint_cmp(bigint* a, bigint* b) {
+    if( a->sign - b->sign )  
+        return a->sign ? -1 : 1;
 
-    assert(a_size < INT_MAX);
-    for(int i = (int)a_size - 1; i >= 0; --i) {
-        if( a[i] > b[i] ) return  1;
-        if( a[i] < b[i] ) return -1;
-    }
-
-    return 0;
+    int t = bigint_cmp_abs(a->digs, a->len, b->digs, b->len);
+    return
+        t ==  1 ? (a->sign ? -1 :  1) :
+        t == -1 ? (a->sign ?  1 : -1) : 
+        0;
 }
 
-uint lzc(uint* arr, uint arr_size) {
-    uint i = arr_size;
+size_t bigint_clz(uint64_t* arr, size_t len) {
+    size_t i = len;
     while( --i && !arr[i] );
-    return arr_size - 1 - i;
+    return len - 1 - i;
 }
 
-bigint add(bigint* a, bigint* b) {
-    bigint result;
-    uint u = MAX(a->size, b->size);
+void bigint_adder(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len, uint64_t* result, size_t* result_len) {
+    size_t u = MAX(a_len, b_len);
+    if(result_len) 
+        *result_len = u;
 
-    if( a->sign != b->sign ) {
-        uint at = a->sign;
-        uint bt = b->sign;
-
-        a->sign = b->sign = !NEGATIVE;
-        bigint t = at ? sub(b, a) : sub(a, b);
-
-        a->sign = at;
-        b->sign = bt;
-        return t;
-    }
-    else {
-        result.msize = u + 1;
-        result.digits = calloc(u+1, sizeof(uint));
-        result.sign = a->sign;
-
-        add_digits(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
-    }
-
-    return result;
-}
-
-void add_digits(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* result_size) {
-    uint u = MAX(a_size, b_size);
-    if( result_size ) 
-        *result_size = u;
-
-    uint64 carry = 0;
-    uint i = 0;
+    __uint128_t carry = 0;
+    size_t i = 0;
     for( ; i < u; ++i) {
-        carry += (i < a_size ? (uint64)a[i] : 0) + (i < b_size ? (uint64)b[i] : 0);
-        result[i] = (uint)(carry % BASE);
+        carry += (i < a_len ? (__uint128_t)a[i] : 0) + (i < b_len ? (__uint128_t)b[i] : 0);
+        result[i] = (uint64_t)(carry % BASE);
         carry /= BASE;
     }
 
-    assert(carry < UINT_MAX);
-    if( carry ) result[result_size ? (*result_size)++ : i] = (uint)carry;
+    if(carry) 
+        result[result_len ? (*result_len)++ : i] = (uint64_t)carry;
+
+    if(result_len) 
+        *result_len -= bigint_clz(result, *result_len);
 }
 
-void inc(uint** n, uint* n_size, uint* n_msize) {
-    uint64 carry = 1;
-    for(uint i = 0; i < *n_size && carry; ++i) {
-        carry += (*n)[i];
-        (*n)[i] = (uint)(carry % BASE);
-        carry /= BASE;
+void bigint_incer(uint64_t* a, size_t* a_len, size_t* a_mlen) {
+    uint64_t one[1] = {1};
+    if(*a_len == *a_mlen) {
+        *a_mlen *= 2;
+        a = realloc(a, *a_mlen * sizeof(uint64_t));
     }
-    if( carry ) {
-        if( *n_size == *n_msize ) *n = realloc(*n, ++*n_msize * sizeof(uint));
-        assert(carry < UINT_MAX);
-        (*n)[n_size == n_msize ? *n_msize - 1 : (*n_size)++] = (uint)carry;
-    }
+
+    bigint_adder(a, *a_len, one, 1, a, a_len);
 }
 
-bigint sub(bigint* a, bigint* b) {
-    // a - (-b) = a+b
-    // (-a) - b = -(a + b)
-    if( a->sign - b->sign ) {
-        if( !a->sign ) {
-            uint at = a->sign;
-            uint bt = b->sign;
-
-            a->sign = b->sign = !NEGATIVE;
-            bigint t = add(a, b);
-
-            a->sign = at;
-            b->sign = bt;
-            t.sign = !NEGATIVE;
-
-            return t;
-        }
-        else {
-            uint at = a->sign;
-            uint bt = b->sign;
-
-            a->sign = b->sign = !NEGATIVE;
-            bigint t = add(a, b);
-
-            a->sign = at;
-            b->sign = bt;
-            t.sign = NEGATIVE;
-
-            return t;
-        }
-    }  
-    // a - b 
-    // (-a) - (-b) = b - a;
-
-    bigint result;
-    uint u = MAX(a->size, b->size);    
-    result.msize = u;
-    result.size = u;
-
-    int k = cmp_abs(a->digits, a->size, b->digits, b->size);
-
-    result.sign = k != -1 ? NEGATIVE : !NEGATIVE;
-    if( !a->sign ) result.sign = !result.sign;
-
-    result.digits = calloc(u, sizeof(uint));
-
-    if(k != -1)
-        sub_digits(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
-    else
-        sub_digits(b->digits, b->size, a->digits, a->size, result.digits, &result.size);
-
-    return result;     
-}
-
-void sub_digits(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* result_size) {
-    uint borrow_flag = 0;
-    uint modified_flag = 0;
-    for(uint i = 0; i < a_size; ++i) {
+void bigint_suber(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len, uint64_t* result, size_t* result_len) {
+    int borrow_flag = 0;
+    int modified_flag = 0;
+    for(size_t i = 0; i < a_len; ++i) {
         if( borrow_flag ) {
             if( a[i] ) {
                 borrow_flag = 0;
                 modified_flag = 1;
                 --a[i--];
             } else 
-                result[i] = BASE - 1 - (i < b_size ? b[i] : 0);
+                result[i] = BASE - 1 - (i < b_len ? b[i] : 0);
             continue;
         }
 
-        if( a[i] < (i < b_size ? b[i] : 0) ) {
+        if( a[i] < (i < b_len ? b[i] : 0) ) {
             borrow_flag = 1;
-            result[i] = (uint)((uint64)a[i] + BASE - b[i]);
+            result[i] = (uint64_t)((__uint128_t)a[i] + BASE - b[i]);
         } else 
-            result[i] = a[i] - (i < b_size ? b[i] : 0);
+            result[i] = a[i] - (i < b_len ? b[i] : 0);
 
         if( modified_flag ) {
             modified_flag = 0;
             ++a[i];
         }
     }
-    
-    if( result_size ) 
-        *result_size -= lzc(result, *result_size);
-    
+
+    if(result_len) 
+        *result_len -= bigint_clz(result, *result_len);
 }
 
-bigint mult_trad(bigint* a, bigint* b) {
+void bigint_tmuler(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len, uint64_t* result, size_t* result_len) {
+    for(size_t i = 0; i < a_len; ++i) {
+        __uint128_t carry = 0;
+        __uint128_t adder_carry = 0;
+        for(size_t j = 0; j < b_len; ++j) {
+            __uint128_t p = (__uint128_t)a[i] * b[j];
+            __uint128_t t = ((p % BASE) + (carry % BASE)) % BASE; 
+            carry = (carry / BASE) + (p / BASE) + ( ((carry % BASE) + (p % BASE)) / BASE );
+            
+            adder_carry += t + result[i+j];
+            result[j+i] = (uint64_t)(adder_carry % BASE);
+            adder_carry /= BASE;
+        }
+
+        result[b_len + i] += (uint64_t)(carry + adder_carry);
+    } 
+    
+    if( result_len ) 
+        *result_len -= bigint_clz(result, *result_len);
+}
+
+uint64_t bigint_tdiver_div_rs(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len) {
+    uint64_t* a_copy = malloc(a_len * sizeof(uint64_t));
+    memcpy(a_copy, a, a_len * sizeof(uint64_t));
+    a = a_copy;
+    a_copy = calloc(a_len, sizeof(uint64_t));
+
+    size_t a_olen = a_len;
+    uint64_t count = 0;
+    for(; bigint_cmp_abs(a, a_len, b, b_len) > -1; ++count) {
+        bigint_suber(a, a_len, b, b_len, a_copy, &a_len);
+
+        memcpy(a, a_copy, a_olen * sizeof(uint64_t));
+        memset(a_copy, 0, a_olen * sizeof(uint64_t));
+    }
+
+    free(a);
+    free(a_copy);
+    return count;
+}
+
+void bigint_tdiver(uint64_t* a, size_t a_len, uint64_t* b, size_t b_len, uint64_t* result) {
+    if(b_len > a_len)
+        return;
+
+    size_t k = b_len + (bigint_cmp_abs(b, b_len, &a[a_len - b_len], b_len) == 1);
+
+    if(a_len - k > a_len)
+        return;
+
+    const size_t mlen = a_len;
+    size_t ln_len, prod_len, diff_len;
+    ln_len = prod_len = diff_len = a_len;
+
+    uint64_t* ptr = calloc(3 * mlen,  sizeof(uint64_t));
+    uint64_t* ln = ptr;
+    uint64_t* prod = &ptr[mlen];
+    uint64_t* diff = &ptr[mlen * 2];
+
+    result[a_len - k] = bigint_tdiver_div_rs(&a[a_len - k], k, b, b_len);
+    bigint_tmuler(&result[a_len - k], 1, b, b_len, prod, &prod_len);
+    bigint_suber(&a[a_len - k], k, prod, prod_len, diff, &diff_len);
+
+    memcpy(ln, diff, mlen * sizeof(uint64_t));
+    ln_len = diff_len;
+
+    memset(prod, 0, mlen * 2 * sizeof(uint64_t));
+    prod_len = diff_len = mlen;
+
+    for(; ++k <= a_len;) {
+        memmove(&ln[1], ln, (mlen - 1) * sizeof(uint64_t));
+        ln[0] = a[a_len - k];
+        ++ln_len;
+
+        ln_len = mlen - bigint_clz(ln, mlen);
+
+        result[a_len - k] = bigint_tdiver_div_rs(ln, ln_len, b, b_len);
+        bigint_tmuler(&result[a_len - k], 1, b, b_len, prod, &prod_len);
+        bigint_suber(ln, ln_len, prod, prod_len, diff, &diff_len);
+
+        memcpy(ln, diff, mlen * sizeof(uint64_t)); 
+        memset(prod, 0, 2 * mlen * sizeof(uint64_t));
+        ln_len = diff_len;
+        diff_len = prod_len = mlen;
+    }
+
+    free(ptr);
+}
+
+bigint bigint_add(bigint* a, bigint* b) {
     bigint result;
 
-    uint u = MAX(a->size, b->size);
-    result.size = result.msize = u * 2 + 1;
-    result.sign = a->sign ^ b->sign;
-    result.digits = calloc(result.msize, sizeof(uint));
+    if(a->sign - b->sign) {
+        int a_sign = a->sign;
+        int b_sign = b->sign;
 
-    mult_digits_trad(a->digits, a->size, b->digits, b->size, result.digits, &result.size);
+        a->sign = b->sign = 0;
+        result = a_sign ? bigint_sub(b, a) : bigint_sub(a, b);
+
+        a->sign = a_sign;
+        b->sign = b_sign;
+    } else {
+        result.mlen = result.len = 1 + MAX(a->len, b->len);
+        result.digs = calloc(result.mlen, sizeof(uint64_t));
+        result.sign = a->sign;
+
+        bigint_adder(a->digs, a->len, b->digs, b->len, result.digs, &result.len);
+    }
 
     return result;
 }
 
-void mult_digits_trad(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* result_size) {
-    assert(a_size < INT_MAX && b_size < INT_MAX);
-    for(uint i = 0; i < a_size; ++i) {
-        uint64 carry = 0;
-        uint64 adder_carry = 0;
-        for(uint j = 0; j < b_size; ++j) {
-            uint64 p = (uint64)a[i] * (uint64)b[j];
-            uint64 t = ((p % BASE) + (carry % BASE)) % BASE; 
-            carry = (uint64)(((double)carry + (double)p) / BASE);
+bigint bigint_sub(bigint* a, bigint* b) {
+    bigint result;
 
-            adder_carry += t + result[i+j];
-            result[j+i] = (uint)(adder_carry % BASE);
-            adder_carry /= BASE;
+    if(a->sign - b->sign) {
+        int a_sign = a->sign;
+        int b_sign = b->sign;
+
+        a->sign = b->sign = 0;
+        result = bigint_add(a, b);
+        result.sign = a_sign ? 1 : 0;
+
+        a->sign = a_sign;
+        b->sign = b_sign;
+
+    } else {
+        result.mlen = result.len = 1 + MAX(a->len, b->len);
+        result.digs = calloc(result.mlen, sizeof(uint64_t));
+
+        int k = bigint_cmp_abs(a->digs, a->len, b->digs, b->len);
+        if(k > -1) {
+            result.sign = a->sign ? 1 : 0;
+            bigint_suber(a->digs, a->len, b->digs, b->len, result.digs, &result.len);
+        } else {
+            result.sign = a->sign ? 0 : 1;
+            bigint_suber(b->digs, b->len, a->digs, a->len, result.digs, &result.len);
         }
-        assert(carry + adder_carry < UINT_MAX);
-        result[b_size + i] += (uint)(carry + adder_carry);
-    } 
-    
-    if( result_size ) 
-        *result_size -= lzc(result, *result_size);
+    }
+
+    return result;
 }
 
-bigint div_trad(bigint* a, bigint* b) {
-    (void)(a);
-    (void)(b);
-    return new_bigint(0);
+bigint bigint_tmul(bigint* a, bigint* b) {
+    bigint result;
+    result.sign = a->sign ^ b->sign;
+    result.len = result.mlen = a->len + b->len;
+    result.digs = calloc(result.mlen, sizeof(uint64_t));
+
+    bigint_tmuler(a->digs, a->len, b->digs, b->len, result.digs, &result.len);
+
+    return result;
 }
-void div_digits_trad(uint* a, uint a_size, uint* b, uint b_size, uint* result, uint* result_size) {
-    (void)(a);
-    (void)(a_size);
-    (void)(b);
-    (void)(b_size);
-    (void)(result);
-    (void)(result_size);
+
+bigint bigint_tdiv(bigint* a, bigint* b) {
+    bigint result;
+    result.sign = a->sign ^ b->sign;
+    result.len = result.mlen = 1 + MAX(a->len, b->len);
+    result.digs = calloc(result.mlen, sizeof(uint64_t));
+
+    bigint_tdiver(a->digs, a->len, b->digs, b->len, result.digs);
+    result.len -= bigint_clz(result.digs, result.mlen);
+
+    return result;
+}
+
+bigint bigint_mod(bigint* a, bigint* b) {
+    bigint div = bigint_tdiv(a, b);
+    bigint prod = bigint_tmul(b, &div);
+
+    bigint result = bigint_sub(a, &prod);
+
+    bigint_free(&div);
+    bigint_free(&prod);
+    return result;
 }

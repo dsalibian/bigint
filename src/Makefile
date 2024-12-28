@@ -36,4 +36,4 @@ obj:
 
 .PHONY: clean
 clean:
-	rm $(BINARY) obj/*.o
+	rm -f $(BINARY) obj/*.o

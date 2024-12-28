@@ -6,12 +6,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
+#include <math.h>
 
+extern uint64_t BASE;
 
 int main(int argc, char **argv) {
     (void)(argc); (void)(argv);
 
-    add_test(10000);
+    int u = 1000;
+    bigint_add_test_low(u);
+    bigint_sub_test_low(u);
+    bigint_tmul_test_low(u); 
+    bigint_tdiv_test_low(u);  
+    bigint_mod_test_low(u);  
 
     return 0;
 }

@@ -3,14 +3,18 @@
 
 #include "bigint.h"
 
-void test(int, bigint(*)(bigint*, bigint*), int64(*)(int64, int64));
+void test_low(int, bigint(*)(bigint*, bigint*), int64_t(*)(int64_t, int64_t));
 
-void add_test(int);
-void sub_test(int);
-void tmult_test(int);
+int64_t bigint_add_tester(int64_t, int64_t);
+int64_t bigint_sub_tester(int64_t, int64_t);
+int64_t bigint_mul_tester(int64_t, int64_t);
+int64_t bigint_div_tester(int64_t, int64_t);
+int64_t bigint_mod_tester(int64_t, int64_t);
 
-int64 _add(int64, int64);
-int64 _sub(int64, int64);
-int64 _mul(int64, int64);
+void bigint_add_test_low(int);
+void bigint_sub_test_low(int);
+void bigint_tmul_test_low(int);
+void bigint_tdiv_test_low(int);
+void bigint_mod_test_low(int);
 
 #endif

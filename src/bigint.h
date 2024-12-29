@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-
 typedef struct biginteger {
     uint64_t* digs;
     size_t len, mlen;
@@ -12,6 +11,8 @@ typedef struct biginteger {
 } bigint;
 
 bigint bigint_new(int64_t);
+bigint bigint_newu(uint64_t);
+bigint bigint_cpy(bigint*);
 void bigint_free(bigint*);
 void bigint_push_back(bigint*, uint64_t);
 void bigint_resize(bigint*, size_t);

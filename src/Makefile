@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -Wshadow -Wdisabled-optimization \
 		 -Wdeprecated -Wundef -Wpointer-arith \
 		 -Wnull-dereference
 OPTFLAGS = -march=native -Ofast -flto -frename-registers -DNDEBUG
-DBGFLAGS = -ggdb
+DBGFLAGS = -ggdb -g -fsanitize=address
 
 BINARY = emain
 
@@ -20,7 +20,7 @@ debug: CFLAGS += $(DBGFLAGS)
 
 
 $(BINARY): $(OBJ_FILES)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -lm -o $@
 
 obj/tests.o: bigint.h
 
@@ -28,7 +28,7 @@ obj/main.o: main.c bigint.h tests.h | obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/%.o: %.c %.h Makefile | obj
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -lm -o $@
 
 obj: 
 	mkdir obj

@@ -21,5 +21,14 @@ int main(int argc, char **argv) {
     bigint_tdiv_test_low(u);  
     bigint_mod_test_low(u);  
 
+    //bigint a = bigint_new(-1000);
+    //bigint b = bigint_new(-1000);
+    //bigint c = bigint_add(&a, &b);
+
+    //printf("%d %d\n", bigint_to_int64(&a), a.len);
+    //printf("%d %d\n", bigint_to_int64(&b), b.len);
+    //printf("%d\n", bigint_to_int64(&c));
+
+
     return 0;
 }

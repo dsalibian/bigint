@@ -5,25 +5,65 @@
 #include <math.h>
 #include <string.h>
 
-const uint64_t BASE = 10;
+const uint64_t BASE = ~0ull;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b));
 #define MIN(a, b) ((a) < (b) ? (a) : (b));
 
+size_t ilog_b(uint64_t n, uint64_t b) {
+    size_t c = 0;
+    while(n >= b) 
+        n /= b, c++;
+
+    return c;
+}
+
 bigint bigint_new(int64_t n) {
     bigint bint;
     bint.sign = n < 0;
-    bint.len = 0;
-    bint.mlen = 1;
-    bint.digs = malloc(sizeof(uint64_t));
 
     uint64_t n_abs = (uint64_t)llabs(n);
-    do {
-        bigint_push_back(&bint, n_abs % BASE);
+
+    bint.len = n ? ilog_b(n_abs, BASE) + 1 : 1;
+    bint.mlen = bint.len + 1;
+
+    bint.digs = malloc(bint.mlen * sizeof(uint64_t));
+    bint.digs[bint.len] = 0;
+
+    for(size_t i = 0; i < bint.len; ++i) {
+        bint.digs[i] = n_abs % BASE;
         n_abs /= BASE;
-    } while( n_abs );
+    }
 
     return bint;
+}
+
+bigint bigint_newu(uint64_t n) {
+    bigint bint;
+    bint.sign = 0;
+
+    bint.len = n ? (size_t)log10((double)n) + 1 : 1;
+    bint.mlen = bint.len + 1;
+
+    bint.digs = malloc(bint.mlen * sizeof(uint64_t));
+    bint.digs[bint.len] = 0;
+
+    for(size_t i = 0; i < bint.len; ++i) {
+        bint.digs[i] = n % BASE;
+        n /= BASE;
+    }
+
+    return bint;
+}
+
+bigint bigint_cpy(bigint* bint) {
+    bigint cpy;
+    cpy = *bint;
+
+    cpy.digs = malloc(cpy.mlen * sizeof(uint64_t));
+    memcpy(cpy.digs, bint->digs, cpy.mlen * sizeof(uint64_t));
+
+    return cpy;
 }
 
 void bigint_free(bigint* bint) {
@@ -35,18 +75,61 @@ void bigint_resize(bigint* bint, size_t size) {
     bint->digs = realloc(bint->digs, bint->mlen * sizeof(uint64_t));
 }
 
-void bigint_push_back(bigint* bint, uint64_t d) {
-    if( bint->len == bint->mlen )
-        bigint_resize(bint, 2 * bint->mlen);
-    
-    bint->digs[(bint->len)++] = d;
+size_t bigint_tostr_count(bigint* n, uint64_t base) {
+    bigint cpy = bigint_cpy(n);
+    cpy.sign = 0;
+
+    size_t count = 0;
+
+    bigint zero = bigint_new(0);
+    bigint bbase = bigint_newu(base);
+
+    do {
+        ++count;
+        bigint t = bigint_tdiv(&cpy, &bbase);
+        bigint_free(&cpy);
+        cpy = t;
+    } while(bigint_cmp(&cpy, &zero) != 0);
+
+    bigint_free(&cpy);
+    bigint_free(&zero);
+    bigint_free(&bbase);
+    return count;
 }
 
+const char* bigint_tostr(bigint* n, uint64_t base) {
+    if(base > 36)
+        return NULL;
+    
+    size_t len = bigint_tostr_count(n, base) + (size_t)(n->sign) + 1;
+    char* str = malloc(len);
+    str[len - 1] = '\0';
 
-const char* bigint_tostr(bigint* arr, uint64_t base) {
-    (void)(arr); (void)(base);
+    size_t i = 0;
+    if(n->sign) 
+        str[i++] = '-';
+    
+    bigint cpy = bigint_cpy(n);
+    bigint bbase = bigint_newu(base);
 
-    return NULL;    
+    for(; i < len - 1; ++i) {
+        bigint mod = bigint_mod(&cpy, &bbase); 
+        char d = (char)mod.digs[0];
+
+        size_t index = len - 1 - !n->sign - i;
+        if(base <= 10) str[index] = '0' + d;
+        else str[index] = d < 10 ? '0' + d : 'a' - 10 + d;
+
+        bigint_free(&mod);
+
+        bigint t = bigint_tdiv(&cpy, &bbase);
+        bigint_free(&cpy);
+        cpy = t;
+    }
+
+    bigint_free(&bbase);
+    bigint_free(&cpy);
+    return (const char*)str;    
 }
 
 int64_t bigint_to_int64(bigint* bint) {
